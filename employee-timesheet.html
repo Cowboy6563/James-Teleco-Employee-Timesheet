@@ -141,6 +141,7 @@
 
     <div class="card">
       <h2 style="margin:0 0 0.5rem;font-size:1.05rem">Today's Entries</h2>
+      <p style="font-size:0.8rem;color:var(--muted);margin:0 0 0.5rem">Entries for other days appear below under Pay Period Entries.</p>
       <div id="entriesList"></div>
       <div class="total" id="dayTotal">Today: 0.00 hrs</div>
       <div class="total" id="dayOT" style="color:#fbbf24;font-size:0.9rem;margin-top:0.25rem;"></div>
@@ -265,11 +266,14 @@ function addEntry() {
   saveData();
   render();
 
-  // Reset form but keep selected date
+  // Clear form fields but keep the selected date
   document.getElementById('notes').value = '';
   document.getElementById('startTime').value = '';
   document.getElementById('stopTime').value = '';
   document.getElementById('offHours').value = '';
+
+  // Scroll to the period list so the user sees the new entry
+  document.getElementById('periodEntriesList').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function calcHours(start, stop) {
