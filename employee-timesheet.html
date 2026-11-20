@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -143,6 +144,11 @@
     </div>
 
     <div class="card">
+      <h2 style="margin:0 0 0.5rem;font-size:1.05rem">Pay Period Entries</h2>
+      <div id="periodEntriesList"></div>
+    </div>
+
+    <div class="card">
       <h2 style="margin:0 0 0.5rem;font-size:1.05rem">This Pay Period</h2>
       <div id="periodTotal" class="total"></div>
       <div id="periodOT" class="total" style="color:#fbbf24;font-size:0.95rem;margin-top:0.25rem;"></div>
@@ -184,6 +190,8 @@ function showApp() {
   document.getElementById('setup').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   document.getElementById('greeting').textContent = employeeName;
+  // Default date to today
+  document.getElementById('entryDate').valueAsDate = new Date();
   updatePeriodInfo();
   render();
 }
@@ -226,7 +234,8 @@ function toggleLunch() {
 function addEntry() {
   const type = document.getElementById('entryType').value;
   const notes = document.getElementById('notes').value.trim();
-  const date = new Date().toISOString().slice(0,10);
+  const date = document.getElementById('entryDate').value;
+  if (!date) return alert('Please select a date.');
   let hours = 0;
   let start = '', stop = '';
 
@@ -253,6 +262,7 @@ function addEntry() {
   saveData();
   render();
 
+  // Reset form but keep selected date
   document.getElementById('notes').value = '';
   document.getElementById('startTime').value = '';
   document.getElementById('stopTime').value = '';
@@ -323,25 +333,61 @@ function render() {
         ? `Daily OT listed: ${totalDailyOT.toFixed(2)} hrs (not payable until 40 hrs reached)` 
         : '';
 
+  // Today's list
   const list = document.getElementById('entriesList');
   if (todayEntries.length === 0) {
     list.innerHTML = '<p style="color:var(--muted);margin:0.5rem 0">No entries today yet.</p>';
-    return;
+  } else {
+    list.innerHTML = `
+      <table>
+        <tr><th>Type</th><th>Time</th><th>Hrs</th><th>Description</th><th></th></tr>
+        ${todayEntries.map(e => `
+          <tr>
+            <td class="entry-type">${e.type}</td>
+            <td>${e.start && e.stop ? e.start + '–' + e.stop : '—'}</td>
+            <td>${e.hours.toFixed(2)}</td>
+            <td>${e.notes || ''}</td>
+            <td><button class="danger" style="padding:0.25rem 0.5rem;font-size:0.75rem" onclick="deleteEntry(${e.id})">✕</button></td>
+          </tr>
+        `).join('')}
+      </table>
+    `;
   }
-  list.innerHTML = `
-    <table>
-      <tr><th>Type</th><th>Time</th><th>Hrs</th><th>Description</th><th></th></tr>
-      ${todayEntries.map(e => `
-        <tr>
-          <td class="entry-type">${e.type}</td>
-          <td>${e.start && e.stop ? e.start + '–' + e.stop : '—'}</td>
-          <td>${e.hours.toFixed(2)}</td>
-          <td>${e.notes || ''}</td>
-          <td><button class="danger" style="padding:0.25rem 0.5rem;font-size:0.75rem" onclick="deleteEntry(${e.id})">✕</button></td>
-        </tr>
-      `).join('')}
-    </table>
-  `;
+
+  // Full period list grouped by date
+  const periodList = document.getElementById('periodEntriesList');
+  if (periodEntries.length === 0) {
+    periodList.innerHTML = '<p style="color:var(--muted);margin:0.5rem 0">No entries in this pay period yet.</p>';
+  } else {
+    const grouped = {};
+    periodEntries.forEach(e => {
+      if (!grouped[e.date]) grouped[e.date] = [];
+      grouped[e.date].push(e);
+    });
+    const dates = Object.keys(grouped).sort().reverse();
+    periodList.innerHTML = dates.map(date => {
+      const dayEntries = grouped[date];
+      const dayHrs = dayEntries.reduce((s, e) => s + e.hours, 0);
+      const dayOT = Math.max(0, dayHrs - 8);
+      return `
+        <div style="margin-bottom:1rem;border-bottom:1px solid #334155;padding-bottom:0.5rem;">
+          <strong>${date}</strong> — ${dayHrs.toFixed(2)} hrs${dayOT > 0 ? ` <span style="color:#fbbf24">(+${dayOT.toFixed(2)} OT)</span>` : ''}
+          <table style="margin-top:0.3rem;">
+            <tr><th>Type</th><th>Time</th><th>Hrs</th><th>Description</th><th></th></tr>
+            ${dayEntries.map(e => `
+              <tr>
+                <td>${e.type}</td>
+                <td>${e.start && e.stop ? e.start + '–' + e.stop : '—'}</td>
+                <td>${e.hours.toFixed(2)}</td>
+                <td>${e.notes || ''}</td>
+                <td><button class="danger" style="padding:0.2rem 0.4rem;font-size:0.7rem" onclick="deleteEntry(${e.id})">✕</button></td>
+              </tr>
+            `).join('')}
+          </table>
+        </div>
+      `;
+    }).join('');
+  }
 }
 
 function exportCSV() {
