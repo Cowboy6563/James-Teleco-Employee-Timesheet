@@ -230,44 +230,49 @@ function toggleLunch() {
 }
 
 function addEntry() {
-  const type = document.getElementById('entryType').value;
-  const notes = document.getElementById('notes').value.trim();
-  const date = document.getElementById('entryDate').value;
-  if (!date) return alert('Please select a date.');
-  let hours = 0;
-  let start = '', stop = '';
+  try {
+    const type = document.getElementById('entryType').value;
+    const notes = document.getElementById('notes').value.trim();
+    const date = document.getElementById('entryDate').value;
+    if (!date) return alert('Please select a date.');
+    let hours = 0;
+    let start = '', stop = '';
 
-  if (type === 'Lunch') {
-    hours = parseFloat(document.getElementById('lunchDuration').value);
-  } else if (type === 'Vacation' || type === 'Sick' || type === 'Holiday') {
-    hours = parseFloat(document.getElementById('offHours').value) || 0;
-    if (hours <= 0) return alert('Enter hours.');
-  } else {
-    start = document.getElementById('startTime').value;
-    stop = document.getElementById('stopTime').value;
-    if (!start || !stop) return alert('Enter start and stop times (or use Now buttons).');
-    hours = calcHours(start, stop);
-    if (hours <= 0) return alert('Stop must be after start.');
+    if (type === 'Lunch') {
+      hours = parseFloat(document.getElementById('lunchDuration').value);
+    } else if (type === 'Vacation' || type === 'Sick' || type === 'Holiday') {
+      hours = parseFloat(document.getElementById('offHours').value) || 0;
+      if (hours <= 0) return alert('Enter hours.');
+    } else {
+      start = document.getElementById('startTime').value;
+      stop = document.getElementById('stopTime').value;
+      if (!start || !stop) return alert('Enter start and stop times (or use Now buttons).');
+      hours = calcHours(start, stop);
+      if (hours <= 0) return alert('Stop must be after start.');
+    }
+
+    data.entries = data.entries || [];
+    data.entries.push({
+      id: Date.now(),
+      date, type, start, stop,
+      hours: +hours.toFixed(2),
+      notes
+    });
+    saveData();
+    render();
+
+    // Clear form fields but keep the selected date
+    document.getElementById('notes').value = '';
+    document.getElementById('startTime').value = '';
+    document.getElementById('stopTime').value = '';
+    document.getElementById('offHours').value = '';
+
+    // Scroll to the period list so the user sees the new entry
+    document.getElementById('periodEntriesList').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } catch (err) {
+    alert('Error adding entry: ' + err.message);
+    console.error(err);
   }
-
-  data.entries = data.entries || [];
-  data.entries.push({
-    id: Date.now(),
-    date, type, start, stop,
-    hours: +hours.toFixed(2),
-    notes
-  });
-  saveData();
-  render();
-
-  // Clear form fields but keep the selected date
-  document.getElementById('notes').value = '';
-  document.getElementById('startTime').value = '';
-  document.getElementById('stopTime').value = '';
-  document.getElementById('offHours').value = '';
-
-  // Scroll to the period list so the user sees the new entry
-  document.getElementById('periodEntriesList').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function calcHours(start, stop) {
