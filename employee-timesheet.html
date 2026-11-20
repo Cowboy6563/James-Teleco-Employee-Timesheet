@@ -129,8 +129,8 @@
         <input type="number" id="offHours" step="0.25" min="0" placeholder="e.g. 8">
       </div>
 
-      <label>Notes / Customer name</label>
-      <input type="text" id="notes" placeholder="Optional">
+      <label>Description</label>
+      <input type="text" id="notes" placeholder="Job details, customer, reason, etc.">
 
       <button onclick="addEntry()">Add Entry</button>
     </div>
@@ -139,11 +139,13 @@
       <h2 style="margin:0 0 0.5rem;font-size:1.05rem">Today's Entries</h2>
       <div id="entriesList"></div>
       <div class="total" id="dayTotal">Today: 0.00 hrs</div>
+      <div class="total" id="dayOT" style="color:#fbbf24;font-size:0.9rem;margin-top:0.25rem;"></div>
     </div>
 
     <div class="card">
       <h2 style="margin:0 0 0.5rem;font-size:1.05rem">This Pay Period</h2>
       <div id="periodTotal" class="total"></div>
+      <div id="periodOT" class="total" style="color:#fbbf24;font-size:0.95rem;margin-top:0.25rem;"></div>
       <div class="actions">
         <button class="success" onclick="exportCSV()">Export CSV</button>
         <button onclick="submitTimesheet()">Submit Timesheet</button>
@@ -281,11 +283,45 @@ function render() {
     return d >= start && d <= end;
   });
 
+  // Daily totals
   const dayTotal = todayEntries.reduce((s, e) => s + e.hours, 0);
-  const periodTotal = periodEntries.reduce((s, e) => s + e.hours, 0);
-
+  const dayOTHours = Math.max(0, dayTotal - 8);
   document.getElementById('dayTotal').textContent = `Today: ${dayTotal.toFixed(2)} hrs`;
-  document.getElementById('periodTotal').textContent = `Pay period total: ${periodTotal.toFixed(2)} hrs`;
+  document.getElementById('dayOT').textContent = dayOTHours > 0 
+    ? `Over 8 hrs today: ${dayOTHours.toFixed(2)} hrs (listed as OT)` 
+    : '';
+
+  // Period totals and OT logic
+  const periodTotal = periodEntries.reduce((s, e) => s + e.hours, 0);
+  
+  // Calculate daily OT list for the period
+  const byDate = {};
+  periodEntries.forEach(e => {
+    byDate[e.date] = (byDate[e.date] || 0) + e.hours;
+  });
+  let dailyOTList = [];
+  let totalDailyOT = 0;
+  Object.keys(byDate).forEach(date => {
+    const hrs = byDate[date];
+    if (hrs > 8) {
+      const ot = hrs - 8;
+      dailyOTList.push({ date, ot });
+      totalDailyOT += ot;
+    }
+  });
+
+  // Actual payable OT only after 40 hours
+  const payableOT = periodTotal > 40 ? Math.min(periodTotal - 40, totalDailyOT) : 0;
+  const regularHours = periodTotal - payableOT;
+
+  document.getElementById('periodTotal').textContent = 
+    `Pay period total: ${periodTotal.toFixed(2)} hrs (Regular: ${regularHours.toFixed(2)})`;
+  document.getElementById('periodOT').textContent = 
+    periodTotal > 40 
+      ? `Overtime (after 40 hrs): ${payableOT.toFixed(2)} hrs` 
+      : totalDailyOT > 0 
+        ? `Daily OT listed: ${totalDailyOT.toFixed(2)} hrs (not payable until 40 hrs reached)` 
+        : '';
 
   const list = document.getElementById('entriesList');
   if (todayEntries.length === 0) {
@@ -294,7 +330,7 @@ function render() {
   }
   list.innerHTML = `
     <table>
-      <tr><th>Type</th><th>Time</th><th>Hrs</th><th>Notes</th><th></th></tr>
+      <tr><th>Type</th><th>Time</th><th>Hrs</th><th>Description</th><th></th></tr>
       ${todayEntries.map(e => `
         <tr>
           <td class="entry-type">${e.type}</td>
@@ -342,6 +378,19 @@ async function submitTimesheet() {
   if (periodEntries.length === 0) return alert('No entries in this pay period to submit.');
 
   const total = periodEntries.reduce((s, e) => s + e.hours, 0);
+
+  // OT calculation for email
+  const byDate = {};
+  periodEntries.forEach(e => {
+    byDate[e.date] = (byDate[e.date] || 0) + e.hours;
+  });
+  let totalDailyOT = 0;
+  Object.values(byDate).forEach(hrs => {
+    if (hrs > 8) totalDailyOT += (hrs - 8);
+  });
+  const payableOT = total > 40 ? Math.min(total - 40, totalDailyOT) : 0;
+  const regularHours = total - payableOT;
+
   const status = document.getElementById('submitStatus');
   status.textContent = 'Submitting…';
   status.style.color = 'var(--muted)';
@@ -350,13 +399,16 @@ async function submitTimesheet() {
     employee: employeeName,
     period_end: end.toISOString().slice(0,10),
     total_hours: total.toFixed(2),
+    regular_hours: regularHours.toFixed(2),
+    overtime_hours: payableOT.toFixed(2),
+    daily_ot_listed: totalDailyOT.toFixed(2),
     entries: periodEntries.map(e => ({
       date: e.date,
       type: e.type,
       start: e.start || '',
       stop: e.stop || '',
       hours: e.hours,
-      notes: e.notes || ''
+      description: e.notes || ''
     })),
     _subject: `Timesheet – ${employeeName} – Period ending ${end.toISOString().slice(0,10)}`
   };
