@@ -319,9 +319,9 @@ function render() {
   // Period totals and OT logic
   const periodTotal = periodEntries.reduce((s, e) => s + e.hours, 0);
   
-  // Calculate daily OT list for the period
+  // Calculate daily OT list for the period (work hours only)
   const byDate = {};
-  periodEntries.forEach(e => {
+  workPeriod.forEach(e => {
     byDate[e.date] = (byDate[e.date] || 0) + e.hours;
   });
   let dailyOTList = [];
@@ -382,7 +382,7 @@ function render() {
     const dates = Object.keys(grouped).sort().reverse();
     periodList.innerHTML = dates.map(date => {
       const dayEntries = grouped[date];
-      const dayHrs = dayEntries.reduce((s, e) => s + e.hours, 0);
+      const dayHrs = dayEntries.filter(e => e.type !== 'Lunch').reduce((s, e) => s + e.hours, 0);
       const dayOT = Math.max(0, dayHrs - 8);
       return `
         <div style="margin-bottom:1rem;border-bottom:1px solid #334155;padding-bottom:0.5rem;">
@@ -454,7 +454,7 @@ async function submitTimesheet() {
     entries.forEach(e => {
       text += `${e.date} | ${e.type} | ${e.start || '-'} | ${e.stop || '-'} | ${e.hours.toFixed(2)} | ${e.notes || ''}\n`;
     });
-    const weekTotal = entries.reduce((s, e) => s + e.hours, 0);
+    const weekTotal = entries.filter(e => e.type !== 'Lunch').reduce((s, e) => s + e.hours, 0);
     text += `Week total: ${weekTotal.toFixed(2)} hrs\n\n`;
     return text;
   };
