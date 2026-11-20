@@ -299,16 +299,18 @@ function render() {
     return d >= start && d <= end;
   });
 
-  // Daily totals
-  const dayTotal = todayEntries.reduce((s, e) => s + e.hours, 0);
+  // Daily totals (exclude Lunch)
+  const workToday = todayEntries.filter(e => e.type !== 'Lunch');
+  const dayTotal = workToday.reduce((s, e) => s + e.hours, 0);
   const dayOTHours = Math.max(0, dayTotal - 8);
   document.getElementById('dayTotal').textContent = `Today: ${dayTotal.toFixed(2)} hrs`;
   document.getElementById('dayOT').textContent = dayOTHours > 0 
     ? `Over 8 hrs today: ${dayOTHours.toFixed(2)} hrs (listed as OT)` 
     : '';
 
-  // Period totals and OT logic
-  const periodTotal = periodEntries.reduce((s, e) => s + e.hours, 0);
+  // Period totals and OT logic (exclude Lunch from work hours)
+  const workPeriod = periodEntries.filter(e => e.type !== 'Lunch');
+  const periodTotal = workPeriod.reduce((s, e) => s + e.hours, 0);
   
   // Calculate daily OT list for the period (work hours only)
   const byDate = {};
