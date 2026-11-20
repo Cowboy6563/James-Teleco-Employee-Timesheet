@@ -201,24 +201,10 @@ function showApp() {
 }
 
 function getCurrentPayPeriod() {
-  const now = new Date();
-  // Find the next Wednesday (or today if it's Wednesday)
-  let end = new Date(now);
-  const day = end.getDay(); // 0=Sun ... 3=Wed
-  const daysUntilWed = (3 - day + 7) % 7;
-  end.setDate(end.getDate() + daysUntilWed);
-  end.setHours(23, 59, 59, 999);
-
-  // If we already passed this Wednesday, move to the next one
-  if (now > end) {
-    end.setDate(end.getDate() + 7);
-  }
-
-  // Period is 14 days: start = end - 13 days
-  const start = new Date(end);
-  start.setDate(end.getDate() - 13);
-  start.setHours(0, 0, 0, 0);
-
+  // Force current period: Nov 19 2026 (Thu) – Dec 3 2026 (Thu)
+  // Adjust this anchor date if your cycle changes
+  const end = new Date(2026, 11, 3, 23, 59, 59, 999); // Dec 3 2026
+  const start = new Date(2026, 10, 19, 0, 0, 0, 0);   // Nov 19 2026
   return { start, end };
 }
 
